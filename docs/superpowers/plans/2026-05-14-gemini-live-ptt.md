@@ -6,7 +6,7 @@
 
 **Architecture:** FastAPI server hosts a static HTML/JS page and a `/ws` WebSocket endpoint. The browser captures mic via AudioWorklet only while spacebar is held, sending PCM frames + `speech_start`/`speech_end` JSON control messages. Server bridges those into ADK's `LiveRequestQueue` (`send_activity_start` / `send_realtime` / `send_activity_end`) and forwards model events back as binary audio + JSON transcripts. ADK's `RunConfig.realtime_input_config.automatic_activity_detection.disabled=True` is the load-bearing config that prevents Gemini from inferring its own turn boundaries.
 
-**Tech Stack:** Python 3.11+, `google-adk>=1.25,<2`, `google-genai`, FastAPI, Uvicorn, plain HTML/JS (no framework), AudioWorklet, pytest + pytest-asyncio. Auth via `GOOGLE_API_KEY` (Google AI Studio).
+**Tech Stack:** Python 3.12+, `google-adk>=1.25,<2`, `google-genai`, FastAPI, Uvicorn, plain HTML/JS (no framework), AudioWorklet, pytest + pytest-asyncio. Auth via `GOOGLE_API_KEY` (Google AI Studio).
 
 **Spec:** `docs/superpowers/specs/2026-05-14-gemini-live-ptt-design.md`
 
@@ -95,7 +95,7 @@ Create `tests/__init__.py` with content: (empty file)
 
 Run:
 ```bash
-python3.11 -m venv .venv
+python3.12 -m venv .venv
 .venv/bin/pip install -e '.[dev]'
 ```
 
@@ -1560,7 +1560,7 @@ Disables Gemini Live's automatic VAD so the spacebar is the sole turn-boundary s
 ## Quickstart
 
 ```bash
-python3.11 -m venv .venv
+python3.12 -m venv .venv
 .venv/bin/pip install -e '.[dev]'
 cp .env.example .env  # then edit and add your GOOGLE_API_KEY
 .venv/bin/uvicorn app.server:app --port 8000
@@ -1613,7 +1613,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
           cache: pip
       - name: Install
         run: pip install -e '.[dev]'

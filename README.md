@@ -6,7 +6,7 @@ Disables Gemini Live's automatic VAD so the spacebar is the sole turn-boundary s
 ## Quickstart
 
 ```bash
-python3.11 -m venv .venv
+python3.12 -m venv .venv
 .venv/bin/pip install -e '.[dev]'
 cp .env.example .env  # then edit and add your GOOGLE_API_KEY
 .venv/bin/uvicorn app.server:app --port 8000

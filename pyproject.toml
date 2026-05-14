@@ -2,7 +2,7 @@
 name = "gemini-live-ptt"
 version = "0.1.0"
 description = "Push-to-talk demo for Gemini Live via Google ADK"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dependencies = [
     "google-adk>=1.25,<2",
     "google-genai",
