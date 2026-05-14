@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Gemini Live PTT</title>
+  <style>
+    :root { color-scheme: dark; }
+    body { font-family: ui-sans-serif, system-ui, sans-serif; max-width: 640px;
+           margin: 2rem auto; padding: 0 1rem; background: #111; color: #eee; }
+    header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; }
+    h1 { font-size: 1.1rem; margin: 0; font-weight: 600; }
+    #status { font-size: 0.8rem; padding: 0.15rem 0.6rem; border-radius: 999px;
+              background: #333; color: #ccc; }
+    #status.ready { background: #064; color: #afa; }
+    #status.recording { background: #804; color: #fbb; }
+    #status.error { background: #800; color: #fdd; }
+    #hint { color: #888; font-size: 0.85rem; margin-bottom: 1rem; }
+    #transcript { background: #1b1b1b; border: 1px solid #2b2b2b;
+                  padding: 0.75rem 1rem; border-radius: 6px; min-height: 16rem; }
+    .turn { margin-bottom: 0.75rem; }
+    .turn .label { font-size: 0.7rem; color: #888; text-transform: uppercase;
+                   letter-spacing: 0.05em; margin-bottom: 0.15rem; }
+    .turn.user .label { color: #6af; }
+    .turn.model .label { color: #fa6; }
+    #overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85);
+               display: none; align-items: center; justify-content: center;
+               text-align: center; padding: 2rem; }
+    #overlay.show { display: flex; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Gemini Live — Push to Talk</h1>
+    <span id="status">connecting…</span>
+  </header>
+  <div id="hint">Hold <kbd>SPACE</kbd> to talk. Release to send. Press again mid-response to interrupt.</div>
+  <div id="transcript" aria-live="polite"></div>
+  <div id="overlay">
+    <div>
+      <h2>Microphone permission required</h2>
+      <p>Grant mic access in the browser address bar, then reload.</p>
+    </div>
+  </div>
+  <script type="module" src="/static/ptt.js"></script>
+</body>
+</html>
