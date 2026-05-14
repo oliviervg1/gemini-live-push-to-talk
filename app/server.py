@@ -2,12 +2,13 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, WebSocket
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from google.adk.agents.live_request_queue import LiveRequestQueue
@@ -85,8 +86,15 @@ async def ws_endpoint(ws: WebSocket):
         async with asyncio.TaskGroup() as tg:
             tg.create_task(browser_to_adk(ws, live_queue, state))
             tg.create_task(adk_to_browser(ws, live_events, state))
-    except* Exception as eg:  # noqa: F841
+    except* WebSocketDisconnect as eg:
         for exc in eg.exceptions:
+            logger.info("ws disconnected: %r", exc)
+    except* Exception as eg:
+        for exc in eg.exceptions:
+            try:
+                await ws.send_text(json.dumps({"type": "error", "message": str(exc)}))
+            except Exception:
+                pass  # WS already closed; nothing more to do
             logger.warning("bridge task error: %r", exc)
     finally:
         live_queue.close()
