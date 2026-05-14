@@ -32,3 +32,17 @@ async def test_browser_to_adk_speech_start_calls_activity_start_and_clears_inter
 
     live_queue.send_activity_start.assert_called_once_with()
     assert state.interrupting is False
+
+
+async def test_browser_to_adk_audio_frame_calls_send_realtime_with_blob():
+    pcm = b"\x00\x01" * 320  # ~20ms of fake 16-bit PCM
+    ws = make_ws(bytes_msg(pcm))
+    live_queue = MagicMock()
+    state = BridgeState()
+
+    await browser_to_adk(ws, live_queue, state)
+
+    live_queue.send_realtime.assert_called_once()
+    blob = live_queue.send_realtime.call_args.args[0]
+    assert blob.data == pcm
+    assert blob.mime_type == "audio/pcm;rate=16000"
