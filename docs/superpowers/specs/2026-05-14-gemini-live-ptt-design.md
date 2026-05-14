@@ -48,14 +48,14 @@ This spec describes a small Python + ADK + FastAPI app with a vanilla HTML/JS fr
 ## 3. Architecture
 
 ```
-┌──────────────────────────┐         WebSocket          ┌──────────────────────────┐         google-genai        ┌──────────────────┐
-│  Browser (index.html)    │  ───── /ws audio frames ─► │  FastAPI server (main.py)│  ───── run_live() ────────► │ Gemini Live API  │
-│                          │  ◄──── /ws audio + text ── │                          │  ◄───── async events ────── │ (preview model)  │
-│ • PTT spacebar handler   │                            │ • WS endpoint            │                             └──────────────────┘
-│ • AudioWorklet capture   │                            │ • ADK Runner per session │
-│ • PCM playback queue     │                            │ • LiveRequestQueue       │
-│ • Transcript renderer    │                            │ • Bridge tasks (2)       │
-└──────────────────────────┘                            └──────────────────────────┘
+┌──────────────────────────┐        WebSocket         ┌──────────────────────────┐        google-genai        ┌──────────────────┐
+│  Browser (index.html)    │ ───── /ws audio frames ──► FastAPI app (server.py)  │ ───── run_live() ────────► │ Gemini Live API  │
+│                          │ ◄──── /ws audio + text ── │                          │ ◄───── async events ────── │ (preview model)  │
+│ • PTT spacebar handler   │                          │ • WS endpoint            │                            └──────────────────┘
+│ • AudioWorklet capture   │                          │ • ADK Runner per session │
+│ • PCM playback queue     │                          │ • LiveRequestQueue       │
+│ • Transcript renderer    │                          │ • Bridge tasks (2)       │
+└──────────────────────────┘                          └──────────────────────────┘
 ```
 
 **Mute gate location: browser-side.** The mic AudioWorklet only emits PCM frames while the spacebar is held; no audio crosses the WS between presses. Combined with manual VAD on the server, this guarantees no false interruptions.
@@ -71,7 +71,7 @@ This spec describes a small Python + ADK + FastAPI app with a vanilla HTML/JS fr
 | `app/static/ptt.js` | Keydown/keyup, AudioWorklet setup, WS client, downlink playback. | ~150 |
 | `app/static/recorder-worklet.js` | AudioWorklet processor: float32 → 16-bit PCM @ 16 kHz. | ~25 |
 | `app/static/player.js` | PCM @ 24 kHz playback queue using chained `AudioBufferSourceNode`s. | ~50 |
-| `pyproject.toml` | Deps: `google-adk`, `google-genai`, `fastapi`, `uvicorn[standard]`, `python-dotenv`. | — |
+| `pyproject.toml` | Python ≥3.11. Deps: `google-adk>=1.25,<2`, `google-genai`, `fastapi`, `uvicorn[standard]`, `python-dotenv`. | — |
 | `.env.example` | `GOOGLE_API_KEY=...` | — |
 | `tests/` | Pytest suite (see §7). | — |
 
@@ -188,7 +188,7 @@ The `state.interrupting` flag flips off the moment we receive the new `speech_st
 
 - **Mid-response keypress with both audio and transcript flowing.** Both are dropped while `interrupting` is true so the displayed transcript doesn't show a half-finished sentence as "complete".
 - **Rapid press/release cycles.** Each cycle is its own `start`/`audio`/`end`. ADK's queue serializes them.
-- **Spacebar held while WS reconnecting.** PCM frames buffered in browser; dropped if WS doesn't reopen within 1 s. Status pill shows "reconnecting…".
+- **Spacebar held while WS reconnecting.** Pending press state is discarded on disconnect — when the WS reopens, the user must release and press again to start a fresh turn. Avoids ambiguity about whether to "resume" a half-sent turn against a fresh server-side session. Status pill shows "reconnecting…".
 
 ### 5.6 Explicit non-goals
 
@@ -252,6 +252,10 @@ run_config = RunConfig(
 ### 6.4 Per-connection wiring (in `/ws` handler)
 
 ```python
+@dataclass
+class BridgeState:
+    interrupting: bool = False  # set by barge_in, cleared by next speech_start
+
 session = await session_service.create_session(app_name="ptt", user_id="local")
 live_queue = LiveRequestQueue()
 live_events = runner.run_live(
@@ -324,7 +328,7 @@ Structured logs in `server.py` at INFO for connect/disconnect/turn-complete; WAR
 
 ### 8.2 Manual smoke checklist (`tests/SMOKE.md`)
 
-1. `uv run uvicorn app.server:app` → open `http://localhost:8000`.
+1. `uvicorn app.server:app` (in your venv) → open `http://localhost:8000`.
 2. Grant mic permission. Status pill shows "ready".
 3. Hold spacebar, ask "Hello, what's two plus two?", release. Verify input transcript appears, model audio plays, output transcript shows incrementally, `turn_complete` indicator fires.
 4. Hold spacebar mid-response. Verify audio cuts within ~50 ms, model starts a new turn from your latest input.
