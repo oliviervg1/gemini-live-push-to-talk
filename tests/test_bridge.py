@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from app.bridge import BridgeState, browser_to_adk
+from app.bridge import BridgeState, adk_to_browser, browser_to_adk
 
 
 def make_ws(*messages):
@@ -83,3 +83,44 @@ async def test_browser_to_adk_barge_in_then_speech_start_clears_interrupting():
 
     assert state.interrupting is False
     live_queue.send_activity_start.assert_called_once_with()
+
+
+def fake_event(*, audio: bytes | None = None,
+               input_text: str | None = None, input_final: bool = False,
+               output_text: str | None = None, output_final: bool = False,
+               turn_complete: bool = False, interrupted: bool = False):
+    """Build a MagicMock that mirrors the LlmResponse/Event shape we read."""
+    ev = MagicMock()
+    if audio is not None:
+        part = MagicMock()
+        part.inline_data = MagicMock(data=audio, mime_type="audio/pcm;rate=24000")
+        ev.content = MagicMock(parts=[part])
+    else:
+        ev.content = None
+    if input_text is not None:
+        ev.input_transcription = MagicMock(text=input_text, finished=input_final)
+    else:
+        ev.input_transcription = None
+    if output_text is not None:
+        ev.output_transcription = MagicMock(text=output_text, finished=output_final)
+    else:
+        ev.output_transcription = None
+    ev.turn_complete = turn_complete
+    ev.interrupted = interrupted
+    return ev
+
+
+async def fake_events(*evs):
+    for e in evs:
+        yield e
+
+
+async def test_adk_to_browser_forwards_audio_as_binary():
+    pcm = b"\x10\x20" * 50
+    ws = AsyncMock()
+    state = BridgeState()
+
+    await adk_to_browser(ws, fake_events(*[fake_event(audio=pcm)]), state)
+
+    ws.send_bytes.assert_called_once_with(pcm)
+    ws.send_text.assert_not_called()

@@ -41,3 +41,25 @@ async def browser_to_adk(ws, live_queue, state: BridgeState) -> None:
             live_queue.send_realtime(
                 types.Blob(data=audio, mime_type="audio/pcm;rate=16000")
             )
+
+
+def _extract_audio(event) -> bytes | None:
+    """Return raw PCM bytes from an event's first inline_data part, if any."""
+    content = getattr(event, "content", None)
+    parts = getattr(content, "parts", None) if content is not None else None
+    if not parts:
+        return None
+    for part in parts:
+        inline = getattr(part, "inline_data", None)
+        data = getattr(inline, "data", None) if inline is not None else None
+        if data:
+            return data
+    return None
+
+
+async def adk_to_browser(ws, live_events, state: BridgeState) -> None:
+    """Pull events from ADK and write them to the websocket."""
+    async for event in live_events:
+        audio = _extract_audio(event)
+        if audio is not None:
+            await ws.send_bytes(audio)
