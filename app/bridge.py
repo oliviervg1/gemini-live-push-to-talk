@@ -33,6 +33,8 @@ async def browser_to_adk(ws, live_queue, state: BridgeState) -> None:
             if kind == "speech_start":
                 live_queue.send_activity_start()
                 state.interrupting = False
+            elif kind == "speech_end":
+                live_queue.send_activity_end()
         elif audio is not None:
             live_queue.send_realtime(
                 types.Blob(data=audio, mime_type="audio/pcm;rate=16000")

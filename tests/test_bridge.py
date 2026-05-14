@@ -46,3 +46,13 @@ async def test_browser_to_adk_audio_frame_calls_send_realtime_with_blob():
     blob = live_queue.send_realtime.call_args.args[0]
     assert blob.data == pcm
     assert blob.mime_type == "audio/pcm;rate=16000"
+
+
+async def test_browser_to_adk_speech_end_calls_activity_end():
+    ws = make_ws(text_msg({"type": "speech_end"}))
+    live_queue = MagicMock()
+    state = BridgeState()
+
+    await browser_to_adk(ws, live_queue, state)
+
+    live_queue.send_activity_end.assert_called_once_with()
