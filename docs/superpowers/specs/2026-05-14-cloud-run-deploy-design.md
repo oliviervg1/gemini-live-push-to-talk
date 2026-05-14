@@ -43,8 +43,11 @@ FROM python:3.12-slim
 WORKDIR /app
 
 # Install deps before copying code so layer caches when only code changes.
+# Use a stub README so pip install can resolve the project without dragging
+# in the full source yet (pyproject doesn't declare README, but pip is happy
+# with a directory containing pyproject.toml).
 COPY pyproject.toml ./
-RUN pip install --no-cache-dir -e .
+RUN pip install --no-cache-dir .
 
 # Copy app source. .dockerignore excludes everything we don't need.
 COPY app ./app
