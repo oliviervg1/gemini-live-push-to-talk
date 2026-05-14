@@ -56,3 +56,30 @@ async def test_browser_to_adk_speech_end_calls_activity_end():
     await browser_to_adk(ws, live_queue, state)
 
     live_queue.send_activity_end.assert_called_once_with()
+
+
+async def test_browser_to_adk_barge_in_sets_interrupting_flag():
+    ws = make_ws(text_msg({"type": "barge_in"}))
+    live_queue = MagicMock()
+    state = BridgeState(interrupting=False)
+
+    await browser_to_adk(ws, live_queue, state)
+
+    assert state.interrupting is True
+    # barge_in alone does not call ADK; the subsequent speech_start does
+    live_queue.send_activity_start.assert_not_called()
+    live_queue.send_activity_end.assert_not_called()
+
+
+async def test_browser_to_adk_barge_in_then_speech_start_clears_interrupting():
+    ws = make_ws(
+        text_msg({"type": "barge_in"}),
+        text_msg({"type": "speech_start"}),
+    )
+    live_queue = MagicMock()
+    state = BridgeState(interrupting=False)
+
+    await browser_to_adk(ws, live_queue, state)
+
+    assert state.interrupting is False
+    live_queue.send_activity_start.assert_called_once_with()
