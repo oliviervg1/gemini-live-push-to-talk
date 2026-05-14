@@ -167,3 +167,36 @@ async def test_adk_to_browser_forwards_interrupted():
 
     payloads = [json.loads(c.args[0]) for c in ws.send_text.call_args_list]
     assert {"type": "interrupted"} in payloads
+
+
+async def test_adk_to_browser_drops_audio_while_interrupting():
+    pcm = b"\xff" * 16
+    ws = AsyncMock()
+    state = BridgeState(interrupting=True)
+
+    await adk_to_browser(ws, fake_events(fake_event(audio=pcm)), state)
+
+    ws.send_bytes.assert_not_called()
+
+
+async def test_adk_to_browser_drops_transcript_while_interrupting():
+    ws = AsyncMock()
+    state = BridgeState(interrupting=True)
+    ev = fake_event(output_text="stale words", output_final=True)
+
+    await adk_to_browser(ws, fake_events(ev), state)
+
+    ws.send_text.assert_not_called()
+
+
+async def test_adk_to_browser_still_forwards_turn_complete_while_interrupting():
+    """turn_complete is a control signal; UI may want to know the old turn ended.
+    Drop logic must not suppress everything. If you change this behavior, update
+    the test."""
+    ws = AsyncMock()
+    state = BridgeState(interrupting=True)
+
+    await adk_to_browser(ws, fake_events(fake_event(turn_complete=True)), state)
+
+    payloads = [json.loads(c.args[0]) for c in ws.send_text.call_args_list]
+    assert {"type": "turn_complete"} in payloads

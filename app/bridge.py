@@ -59,25 +59,28 @@ def _extract_audio(event) -> bytes | None:
 
 async def adk_to_browser(ws, live_events, state: BridgeState) -> None:
     async for event in live_events:
-        audio = _extract_audio(event)
-        if audio is not None:
-            await ws.send_bytes(audio)
+        # Audio + transcript content from a turn that was interrupted is stale.
+        # Drop it so the UI doesn't replay/display it after the user barged in.
+        if not state.interrupting:
+            audio = _extract_audio(event)
+            if audio is not None:
+                await ws.send_bytes(audio)
 
-        in_t = getattr(event, "input_transcription", None)
-        if in_t is not None and getattr(in_t, "text", None):
-            await ws.send_text(json.dumps({
-                "type": "input_transcript",
-                "text": in_t.text,
-                "final": bool(getattr(in_t, "finished", False)),
-            }))
+            in_t = getattr(event, "input_transcription", None)
+            if in_t is not None and getattr(in_t, "text", None):
+                await ws.send_text(json.dumps({
+                    "type": "input_transcript",
+                    "text": in_t.text,
+                    "final": bool(getattr(in_t, "finished", False)),
+                }))
 
-        out_t = getattr(event, "output_transcription", None)
-        if out_t is not None and getattr(out_t, "text", None):
-            await ws.send_text(json.dumps({
-                "type": "output_transcript",
-                "text": out_t.text,
-                "final": bool(getattr(out_t, "finished", False)),
-            }))
+            out_t = getattr(event, "output_transcription", None)
+            if out_t is not None and getattr(out_t, "text", None):
+                await ws.send_text(json.dumps({
+                    "type": "output_transcript",
+                    "text": out_t.text,
+                    "final": bool(getattr(out_t, "finished", False)),
+                }))
 
         if getattr(event, "interrupted", False):
             await ws.send_text(json.dumps({"type": "interrupted"}))
