@@ -124,3 +124,46 @@ async def test_adk_to_browser_forwards_audio_as_binary():
 
     ws.send_bytes.assert_called_once_with(pcm)
     ws.send_text.assert_not_called()
+
+
+async def test_adk_to_browser_forwards_input_transcript_as_json():
+    ws = AsyncMock()
+    state = BridgeState()
+    ev = fake_event(input_text="hello there", input_final=True)
+
+    await adk_to_browser(ws, fake_events(ev), state)
+
+    ws.send_text.assert_called_once()
+    payload = json.loads(ws.send_text.call_args.args[0])
+    assert payload == {"type": "input_transcript", "text": "hello there", "final": True}
+
+
+async def test_adk_to_browser_forwards_output_transcript_as_json():
+    ws = AsyncMock()
+    state = BridgeState()
+    ev = fake_event(output_text="hi back", output_final=False)
+
+    await adk_to_browser(ws, fake_events(ev), state)
+
+    payload = json.loads(ws.send_text.call_args.args[0])
+    assert payload == {"type": "output_transcript", "text": "hi back", "final": False}
+
+
+async def test_adk_to_browser_forwards_turn_complete():
+    ws = AsyncMock()
+    state = BridgeState()
+
+    await adk_to_browser(ws, fake_events(fake_event(turn_complete=True)), state)
+
+    payload = json.loads(ws.send_text.call_args.args[0])
+    assert payload == {"type": "turn_complete"}
+
+
+async def test_adk_to_browser_forwards_interrupted():
+    ws = AsyncMock()
+    state = BridgeState()
+
+    await adk_to_browser(ws, fake_events(fake_event(interrupted=True)), state)
+
+    payloads = [json.loads(c.args[0]) for c in ws.send_text.call_args_list]
+    assert {"type": "interrupted"} in payloads

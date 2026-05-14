@@ -58,8 +58,29 @@ def _extract_audio(event) -> bytes | None:
 
 
 async def adk_to_browser(ws, live_events, state: BridgeState) -> None:
-    """Pull events from ADK and write them to the websocket."""
     async for event in live_events:
         audio = _extract_audio(event)
         if audio is not None:
             await ws.send_bytes(audio)
+
+        in_t = getattr(event, "input_transcription", None)
+        if in_t is not None and getattr(in_t, "text", None):
+            await ws.send_text(json.dumps({
+                "type": "input_transcript",
+                "text": in_t.text,
+                "final": bool(getattr(in_t, "finished", False)),
+            }))
+
+        out_t = getattr(event, "output_transcription", None)
+        if out_t is not None and getattr(out_t, "text", None):
+            await ws.send_text(json.dumps({
+                "type": "output_transcript",
+                "text": out_t.text,
+                "final": bool(getattr(out_t, "finished", False)),
+            }))
+
+        if getattr(event, "interrupted", False):
+            await ws.send_text(json.dumps({"type": "interrupted"}))
+
+        if getattr(event, "turn_complete", False):
+            await ws.send_text(json.dumps({"type": "turn_complete"}))
